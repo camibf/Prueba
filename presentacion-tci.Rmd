@@ -1,0 +1,270 @@
+---
+title: "Computación de alto rendimiento"
+author: "Milagros Camila Briceño Francia"
+fontsize: 8pt
+header-includes: 
+  - \titlegraphic{\includegraphics[width = 3cm]{escudo.png}}
+output:
+  word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Computación de alto rendimiento (HCP)
+
+- Agiliza la investigación.
+
+- La mayoría de las librerías de R utilizan un core o núcleo.
+
+- Optimizar el rendimiento informático.
+
+- Procesamiento de grandes volúmenes de datos.
+
+
+## Librerías de R
+
+Se utilizaron las siguientes librerías:
+
+```{r warning=FALSE}
+library(foreach)
+library(parallel)
+
+library(doParallel)
+library(doRNG)
+```
+
+## Paralelización
+
+Algunas funciones de R para la paralelización:
+
+```{r echo=TRUE, eval=FALSE}
+#Número de núcleos o cores de la CPU
+detectCores() #8
+
+#Crea un conjunto de copias de R para 
+#la ejecución en paralelo.
+cl = makeCluster(num)
+
+
+#Registra o conecta al worker cl
+registerDoParallel(cl)
+
+#Desconecta al worker 
+stopCluster(cl)
+
+#Número de workers actuales
+getDoParWorkers()
+```
+
+## Ejemplos de Aplicación
+
+```{r}
+#foreach y %do%
+x = foreach(a=1:10, b=rep(10, 5), .combine=c) %do% {a + b}; x
+
+m = matrix(rnorm(9), 3,3)
+foreach(i =1:ncol(m), .combine=c) %do% mean(m[,i])
+
+# %dopar%
+cl = makeCluster(3); registerDoParallel(cl)
+
+a = matrix(1:16, 4, 4)
+b = t(a)
+
+foreach(b=iter(b, by='col'), .combine= cbind) %dopar%(a %*%b)
+stopCluster(cl)
+```
+
+
+## Tarea 2
+
+### Función original
+  
+```{r}
+#Número de simulaciones
+n = 100000
+
+#Función con Pvalor como umbral 
+pvalor1 = function(x){
+  mc = rnorm(x)  
+  pvalor = t.test(mc)$p.val
+  return(ifelse(pvalor<0.05,1,0))
+}
+
+```
+
+## Tarea 2
+  
+### Función original
+  
+```{r}
+#Creamos un vector con el tamaño de las muestras
+data = rep(100,n)
+
+#Utilizamos sapply para aplicar la función creada
+set.seed(123)
+system.time({res1 = mean(sapply(data,pvalor1))})
+res1
+```
+
+
+## Tarea 2
+
+### Desarrollo con Paralelización
+```{r}
+#Solución 1
+cl = makeCluster(5); registerDoParallel(cl)
+registerDoRNG(123)
+system.time({res1.1 = foreach(a=rep(100,n),
+            .combine = c) %dopar%{ 
+            pvalor1(a)};res1.1=mean(res1.1)})
+stopCluster(cl)
+res1.1
+```
+
+## Tarea 2
+
+### Desarrollo con Paralelización
+```{r}
+#Solución 2
+cl = makeCluster(5)
+registerDoParallel(cl)
+clusterSetRNGStream(cl, iseed = 123)
+system.time({res1.2 = mean(parSapply(
+            cl,rep(100,n),pvalor1))})
+stopCluster(cl)
+res1.2
+```
+
+## Tarea 3
+  
+### Función Original
+  
+  
+```{r}
+Rprof('profilling.out')
+```
+  
+```{r}
+#Varianza muestral sin corrección
+varsc = function(x) var(x)*(length(x)-1)/length(x)
+#Varianza muestral con corrección
+#var
+
+#Simulación 
+#Tamaño de las muestras
+N = c(10,100,1000)
+
+#Varianza poblacional
+sigma = c(1,10,100)
+
+#Repeticiones
+n=100000
+```
+
+## Tarea 3
+
+### Función Original
+
+```{r}
+#Función
+simu.n = function(m,n,sigma,mu=0,seed=2022){
+  set.seed(seed)
+  m.s2 = replicate(m,varsc(                #Sin corregir
+        rnorm(n,mean=mu,sd=sqrt(sigma))))
+  set.seed(seed)
+  m.s2c = replicate(m,var(
+        rnorm(n,mean=mu,sd=sqrt(sigma)))) #Corregida
+  
+  sesgo.s2 = mean(m.s2)-sigma
+  sesgo.s2c = mean(m.s2c)-sigma
+  
+  #Evaluamos cual presenta el menor sesgo
+  cat("Simulación sigma: ",sigma," n: ",n,
+      "\n Varianza ",mean(m.s2),
+      "(s/corregir) ", mean(m.s2c), "(corregida)",
+      "\n Sesgo: ",mean(sesgo.s2),
+      "(sin corregir) ", mean(sesgo.s2c), "(corregida) \n")
+  cat('Corregida: ',ifelse(sesgo.s2c < sesgo.s2,T,F),"\n ")
+}
+```
+
+## Tarea 3
+
+### Función Original
+
+```{r}
+#Ejecución de la función
+for (s in sigma) {
+  for (n1 in N) {
+    simu.n(n,n1,s)
+  }
+}
+Rprof()
+```
+
+
+
+## Tiempos de ejecución de la Tarea 3
+
+### 
+
+```{r}
+
+#Funciones con mayor tiempo de ejecución
+head(summaryRprof("profilling.out")$by.self)
+
+```
+
+## Tarea 3
+
+### Función con Paralelización
+
+```{r}
+tarea3= function(m,n,sigma,mu=0){
+  cl = makeCluster(5); registerDoParallel(cl)
+  clusterSetRNGStream(cl, iseed = 123)
+  m1 = parApply(cl,parSapply(cl,rep(n,m),rnorm,
+                mean=mu, sd=sqrt(sigma)),2,varsc)
+  stopCluster(cl)
+  
+  cl = makeCluster(5); registerDoParallel(cl)
+  clusterSetRNGStream(cl, iseed = 123)
+  m2 = parApply(cl,parSapply(cl,rep(n,m),rnorm,
+                mean=mu, sd=sqrt(sigma)),2,var)
+  stopCluster(cl)
+  
+  #Sesgo
+  sesgo.s2 = mean(m1)-b
+  sesgo.s2c = mean(m2)-b
+  res = c(a,b,mean(m1),sesgo.s2,mean(m2),sesgo.s2c)
+  return(res)
+}
+```
+
+## Tarea 3
+
+### Función con Paralelización
+
+```{r}
+options(digits = 3)
+```
+
+
+```{r}
+#Combinaciones tamaño de muestra
+cl = makeCluster(5)
+registerDoParallel(cl)
+
+system.time({
+  res2 = foreach(a=rep(N,3),b=sort(rep(sigma,3)),.combine = rbind) %do% {
+    tarea3(n,a,b)} })
+
+res2
+```
+
+
+
