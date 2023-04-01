@@ -1,0 +1,35 @@
+#Ingresar al cmd
+
+#Ir al directorio donde deseas crear el entorno
+#ej: cd C:\Users\....\carpeta
+
+#Ejecutar para crear el entorno ciba-env
+#Se require tener python instalado
+python -m venv ciba-env
+
+
+#Activar el entorno virtual
+ciba-env\Scripts\activate.bat
+
+
+#
+#Si se desea instalar algún paquete se utiliza
+python -m pip install package
+python -m pip install package == 1.0.0 #En este caso se instala la versión 1.0.0
+
+#También se pueden instalar varios paquetes con un .txt
+python -m pip install -r requirements.txt
+
+
+#Para utilizar con jupyter notebook es
+jupyter notebook
+
+#Para utilizarlo en google colab
+
+jupyter serverextension enable --py jupyter_http_over_ws
+
+jupyter notebook --NotebookApp.allow_origin='https://colab.research.google.com' --port=8888 --NotebookApp.port_retries=0
+
+
+
+
