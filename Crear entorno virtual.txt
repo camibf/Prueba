@@ -1,3 +1,4 @@
+#CREAR ENTORNO VIRTUAL
 #Ingresar al cmd
 
 #Ir al directorio donde deseas crear el entorno
